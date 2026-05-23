@@ -2,1216 +2,268 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>drum.ai</title>
-
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial;}
-body{background:#0b0b0b;color:white;height:100vh;overflow:hidden;}
-
-#mainPage{display:flex;height:100vh;}
-
-#sidebar{
-width:260px;background:#111;border-right:1px solid #222;
-padding:20px;display:flex;flex-direction:column;gap:10px;
-flex-shrink:0;
-}
-
-.logo{font-size:26px;font-weight:bold;}
-
-.sideBtn{
-background:#1b1b1b;border:none;color:white;
-padding:12px;border-radius:12px;cursor:pointer;
-}
-
-#mainContent{
-flex:1;display:flex;flex-direction:column;
-min-width:0;overflow:hidden;
-}
-
-#searchWrap{
-padding:15px 20px 0;
-flex-shrink:0;
-}
-
-#searchInput{
-width:100%;
-background:#1d1d1d;color:white;border:none;
-border-radius:12px;padding:12px 15px;
-outline:none;
-}
-
-#botList{
-flex:1;padding:20px;overflow:auto;
-display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-gap:15px;
-}
-
-.botCard{
-background:#171717;border-radius:16px;overflow:hidden;cursor:pointer;
-}
-
-.botCard img{width:100%;height:220px;object-fit:cover;}
-.botInfo{padding:12px;}
-.botName{font-weight:bold;}
-.botGenre{opacity:0.6;font-size:13px;}
-
-.deleteBtn{
-background:red;border:none;color:white;
-width:30px;height:30px;border-radius:8px;cursor:pointer;
-}
-
-/* CHAT */
-#chatPage{display:none;flex-direction:column;height:100vh;}
-
-.chatTop{
-height:70px;background:#111;border-bottom:1px solid #222;
-display:flex;align-items:center;gap:10px;padding:0 15px;
-flex-shrink:0;
-}
-
-.chatTop img{width:45px;height:45px;border-radius:50%;object-fit:cover;}
-
-#messages{
-flex:1;padding:15px;overflow:auto;
-display:flex;flex-direction:column;gap:10px;
-}
-
-.msg{
-max-width:70%;background:#1f1f1f;
-padding:12px;border-radius:14px;
-white-space:pre-wrap;word-break:break-word;
-}
-
-.msg.typing{opacity:0.65;font-style:italic;}
-
-.user{align-self:flex-end;background:#5b4fff;}
-
-.bottom{
-height:80px;background:#111;border-top:1px solid #222;
-display:flex;gap:10px;padding:10px;align-items:center;
-flex-shrink:0;
-}
-
-#msgInput{
-flex:1;background:#1d1d1d;color:white;border:none;
-border-radius:12px;padding:10px;outline:none;
-}
-
-.sendBtn{
-width:60px;height:44px;border:none;border-radius:12px;
-background:#695cff;color:white;cursor:pointer;
-}
-
-.resetBtn{
-width:70px;height:44px;border:none;border-radius:12px;
-background:#ffb020;color:black;font-weight:bold;cursor:pointer;
-}
-
-/* POPUPS */
-.popup{
-position:fixed;inset:0;background:rgba(0,0,0,0.7);
-display:none;justify-content:center;align-items:center;
-z-index:100;
-}
-
-.popupBox{
-width:420px;background:#171717;padding:20px;
-border-radius:16px;display:flex;flex-direction:column;gap:10px;
-position:relative;max-height:90vh;overflow:auto;
-}
-
-.closeBtn{
-position:absolute;right:10px;top:10px;
-width:30px;height:30px;border:none;border-radius:8px;
-background:#333;color:white;cursor:pointer;
-}
-
-.popupBox input,.popupBox textarea,.popupBox select{
-background:#222;border:none;padding:12px;border-radius:10px;color:white;
-width:100%;
-}
-
-.popupBox button{
-background:#695cff;border:none;color:white;
-padding:12px;border-radius:10px;cursor:pointer;
-}
-
-.small{opacity:0.6;font-size:13px;}
-
-.chatsList{
-display:flex;flex-direction:column;gap:10px;
-max-height:55vh;overflow:auto;
-}
-
-.chatSessionItem{
-background:#222;border-radius:12px;padding:12px;
-cursor:pointer;display:flex;gap:12px;align-items:center;
-}
-
-.chatSessionItem:hover{background:#2a2a2a;}
-
-.chatSessionItem img{
-width:48px;height:48px;border-radius:50%;object-fit:cover;
-flex-shrink:0;
-}
-
-.chatSessionMeta{flex:1;min-width:0;}
-
-.chatSessionName{font-weight:bold;margin-bottom:4px;}
-
-.chatSessionPreview{
-opacity:0.65;font-size:13px;
-white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-
-.chatSessionDate{
-opacity:0.45;font-size:11px;margin-top:4px;
-}
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-<div id="mainPage">
-
-<div id="sidebar">
-<div class="logo">drum.ai</div>
-
-<button onclick="openCreate()" class="sideBtn">➕ Создать</button>
-<button onclick="openChats()" class="sideBtn">💬 Чаты</button>
-<button onclick="openSettings()" class="sideBtn">⚙ Настройки</button>
+<div class="live-bg" aria-hidden="true">
+  <span class="orb orb-1"></span>
+  <span class="orb orb-2"></span>
+  <span class="orb orb-3"></span>
+  <span class="shape shape-1"></span>
+  <span class="shape shape-2"></span>
+  <span class="shape shape-3"></span>
 </div>
 
-<div id="mainContent">
-<div id="searchWrap">
-<input id="searchInput" type="text" placeholder="🔍 Поиск ботов..." oninput="searchBots(this.value)">
+<!-- ========== APP SHELL ========== -->
+<div id="appShell" class="app-shell">
+
+<aside id="sidebar" class="sidebar">
+  <div class="sidebar-top">
+    <div class="logo">drum.ai</div>
+    <nav class="nav" aria-label="Главное меню">
+      <button type="button" class="nav-item active" data-view="discover">
+        <span class="nav-icon" aria-hidden="true">◎</span>
+        <span>Discover</span>
+      </button>
+      <button type="button" class="nav-item" data-view="create">
+        <span class="nav-icon" aria-hidden="true">+</span>
+        <span>Create</span>
+      </button>
+      <button type="button" class="nav-item" data-view="search">
+        <span class="nav-icon" aria-hidden="true">⌕</span>
+        <span>Search</span>
+      </button>
+      <button type="button" class="nav-item" data-view="chats">
+        <span class="nav-icon" aria-hidden="true">💬</span>
+        <span>Chats</span>
+      </button>
+      <button type="button" class="nav-item" data-view="settings">
+        <span class="nav-icon" aria-hidden="true">⚙</span>
+        <span>Settings</span>
+      </button>
+      <button type="button" class="nav-item" data-view="balance">
+        <span class="nav-icon" aria-hidden="true">🛍</span>
+        <span>Balance</span>
+      </button>
+    </nav>
+  </div>
+  <div class="sidebar-profile" id="sidebarProfile">
+    <img id="sidebarAvatar" class="profile-avatar profile-avatar-img hidden" src="" alt="">
+    <div id="sidebarAvatarPlaceholder" class="profile-avatar" aria-hidden="true"></div>
+    <span id="sidebarHandle" class="profile-handle">@guest</span>
+  </div>
+</aside>
+
+<main id="mainArea" class="main-area">
+
+  <!-- DISCOVER -->
+  <section id="view-discover" class="view view-active" aria-label="Discover">
+    <header class="view-header">
+      <h1 class="view-title">Discover</h1>
+      <p class="view-subtitle">Выбери персонажа для диалога</p>
+    </header>
+    <div id="botList" class="bot-grid"></div>
+    <p id="discoverEmpty" class="empty-state hidden">Пока нет ботов — создай первого во вкладке Create</p>
+  </section>
+
+  <!-- CHATS -->
+  <section id="view-chats" class="view" aria-label="Chats" hidden>
+    <header class="view-header">
+      <h1 class="view-title">Chats</h1>
+      <p class="view-subtitle">Недавние диалоги</p>
+    </header>
+    <div id="chatsList" class="chats-list"></div>
+    <p id="chatsEmpty" class="empty-state hidden">Пока нет сохранённых диалогов</p>
+  </section>
+
+  <!-- SEARCH -->
+  <section id="view-search" class="view" aria-label="Search" hidden>
+    <div class="search-top">
+      <button type="button" class="icon-btn back-inline" onclick="navigateTo('discover')" aria-label="Назад">
+        <span aria-hidden="true">←</span>
+      </button>
+      <div class="search-bar">
+        <span class="search-bar-icon" aria-hidden="true">⌕</span>
+        <input id="searchInput" type="search" placeholder="Search something....." autocomplete="off">
+      </div>
+    </div>
+    <div id="searchSuggestions" class="search-suggestions"></div>
+    <div id="searchResults" class="bot-grid search-results"></div>
+  </section>
+
+  <!-- CREATE BOT -->
+  <section id="view-create" class="view view-create" aria-label="Create Bot" hidden>
+    <button type="button" class="icon-btn back-floating" onclick="navigateTo('discover')" aria-label="Назад">
+      <span aria-hidden="true">←</span>
+    </button>
+    <div class="create-hint" role="note">
+      Подсказка: Чем лучше написан сюжет — тем лучше бот будет писать
+    </div>
+    <div id="createLoginGate" class="create-card glow-card create-gate">
+      <div class="create-gate-icon" aria-hidden="true">🔒</div>
+      <h2 class="create-gate-title">Войди в drum.ai</h2>
+      <p class="create-gate-text">Создавать ботов могут только авторизованные пользователи</p>
+      <a href="/auth/google" class="btn-google">Войти в drum.ai</a>
+      <button type="button" class="create-gate-link" onclick="navigateTo('settings')">Перейти в настройки</button>
+    </div>
+    <div class="create-card glow-card hidden" id="createFormWrap">
+      <form id="createForm" class="create-form" onsubmit="event.preventDefault(); createBot();">
+        <label class="field-pill">
+          <span class="field-label">Имя:</span>
+          <input id="name" type="text" maxlength="20" placeholder="Например Алиса....." autocomplete="off">
+          <span id="nameCount" class="field-counter">0/20</span>
+        </label>
+        <label class="field-pill">
+          <span class="field-label">Характер:</span>
+          <input id="personality" type="text" placeholder="Например Добрая, Стеснительная....." autocomplete="off">
+        </label>
+        <label class="field-pill field-pill-area">
+          <span class="field-label">Сюжет:</span>
+          <textarea id="scenario" rows="2" placeholder="Например Твоя соседка....."></textarea>
+        </label>
+        <div class="field-pill field-genre">
+          <span class="field-label">Тип бота:</span>
+          <select id="genre" class="genre-select" aria-label="Тип бота">
+            <option value="Романтика">Романтика</option>
+            <option value="Свидание">Свидание</option>
+            <option value="Гей">Гей</option>
+            <option value="Демон">Демон</option>
+            <option value="Аниме">Аниме</option>
+            <option value="Фэнтези">Фэнтези</option>
+            <option value="Хоррор">Хоррор</option>
+            <option value="Драма">Драма</option>
+            <option value="Комедия">Комедия</option>
+            <option value="Мистика">Мистика</option>
+            <option value="Другое">Другое</option>
+          </select>
+        </div>
+        <label id="genreOtherWrap" class="field-pill hidden">
+          <span class="field-label">Свой тип:</span>
+          <input id="genreOther" type="text" maxlength="32" placeholder="Введите свой тип..." autocomplete="off">
+        </label>
+        <div class="field-pill field-gender">
+          <span class="field-label">Пол:</span>
+          <div class="gender-toggle" role="group" aria-label="Пол">
+            <button type="button" class="gender-btn" data-gender="male">Парень</button>
+            <button type="button" class="gender-btn active" data-gender="female">Девушка</button>
+          </div>
+        </div>
+        <label class="field-pill">
+          <span class="field-label">Аватарка:</span>
+          <input id="avatar" type="url" placeholder="Ссылка на изображение (URL)" class="avatar-url">
+          <span class="upload-label">URL</span>
+        </label>
+        <input type="hidden" id="gender" value="female">
+        <button type="submit" class="btn-ready">Готово</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="view-settings" class="view view-centered" aria-label="Settings" hidden>
+    <button type="button" class="icon-btn back-floating" onclick="navigateTo('discover')" aria-label="Назад">
+      <span aria-hidden="true">←</span>
+    </button>
+    <div class="settings-card glow-card">
+      <div id="authGuest" class="auth-block">
+        <p class="auth-label">Аккаунт</p>
+        <a href="/auth/google" class="btn-google" id="btnGoogleLogin">
+          <span class="btn-google-icon" aria-hidden="true">G</span>
+          Войти в drum.ai
+        </a>
+      </div>
+      <div id="authUser" class="auth-profile hidden">
+        <img id="settingsAvatar" class="auth-profile-avatar" src="" alt="">
+        <div class="auth-profile-info">
+          <div id="settingsName" class="auth-profile-name"></div>
+          <div id="settingsEmail" class="auth-profile-email"></div>
+        </div>
+        <button type="button" class="btn-logout" id="btnLogout" onclick="logout()">Выйти</button>
+      </div>
+      <div class="settings-divider"></div>
+      <div class="settings-row">
+        <span class="settings-label">Живые обои</span>
+        <button type="button" id="liveWallpaperToggle" class="toggle-pill" aria-pressed="true">Вкл/Выкл</button>
+      </div>
+      <div class="settings-divider"></div>
+      <button type="button" class="settings-action" onclick="openAd()">💖 Поддержать автора</button>
+      <p class="settings-note">Спасибо за поддержку ❤️</p>
+    </div>
+  </section>
+
+  <!-- BALANCE -->
+  <section id="view-balance" class="view view-centered" aria-label="Balance" hidden>
+    <button type="button" class="icon-btn back-floating" onclick="navigateTo('discover')" aria-label="Назад">
+      <span aria-hidden="true">←</span>
+    </button>
+    <div class="balance-card glow-card">
+      <p class="balance-header">Количество сообщений: <span id="msgBalance">100</span></p>
+      <button type="button" class="balance-pill">1000 Сообщений 0.99$</button>
+      <button type="button" class="balance-pill">5000 Сообщений 2.99$</button>
+      <button type="button" class="balance-pill">10000 Сообщений 3.99$</button>
+      <button type="button" class="balance-pill">Премиум Неделя 2.49$</button>
+      <button type="button" class="balance-pill">Премиум Месяц 6.99$</button>
+      <button type="button" class="balance-pill balance-pill-muted">Восстановить покупки</button>
+      <button type="button" class="balance-pill balance-pill-ad" onclick="openAd()">
+        Посмотреть рекламу<br>получить 100 сообщений
+      </button>
+      <p class="balance-footer">Благодаря покупкам и рекламе<br>приложение остаётся бесплатным</p>
+    </div>
+  </section>
+
+</main>
 </div>
-<div id="botList"></div>
-</div>
+
+<!-- Mobile bottom nav -->
+<nav id="mobileNav" class="mobile-nav" aria-label="Мобильное меню">
+  <button type="button" class="mobile-nav-item active" data-view="discover"><span>◎</span><small>Discover</small></button>
+  <button type="button" class="mobile-nav-item" data-view="create"><span>+</span><small>Create</small></button>
+  <button type="button" class="mobile-nav-item" data-view="search"><span>⌕</span><small>Search</small></button>
+  <button type="button" class="mobile-nav-item" data-view="chats"><span>💬</span><small>Chats</small></button>
+  <button type="button" class="mobile-nav-item" data-view="settings"><span>⚙</span><small>More</small></button>
+</nav>
+
+<!-- ========== CHAT SCREEN ========== -->
+<div id="chatPage" class="chat-screen" hidden>
+
+<header class="chat-header">
+  <button type="button" class="icon-btn" onclick="back()" aria-label="Назад">
+    <span aria-hidden="true">←</span>
+  </button>
+  <div class="chat-header-pill">
+    <img id="chatAvatar" class="chat-header-avatar" src="" alt="">
+    <span id="chatName" class="chat-header-name"></span>
+  </div>
+</header>
+
+<div id="messages" class="messages" role="log" aria-live="polite"></div>
+
+<footer class="chat-footer">
+  <input id="msgInput" type="text" placeholder="Напиши что нибудь....." autocomplete="off">
+  <button type="button" class="btn-reset" onclick="resetChat()" title="Новый чат">↻</button>
+  <button type="button" class="btn-send" onclick="send()" aria-label="Отправить">
+    <span aria-hidden="true">→</span>
+  </button>
+</footer>
 
 </div>
 
-<!-- CHAT -->
-<div id="chatPage">
-
-<div class="chatTop">
-<button onclick="back()" style="background:none;border:none;color:white;cursor:pointer;font-size:18px;">←</button>
-<img id="chatAvatar" alt="">
-<div id="chatName"></div>
+<!-- AD popup -->
+<div class="overlay" id="adPopup" hidden>
+  <div class="overlay-card glow-card">
+    <button type="button" class="overlay-close" onclick="closeAd()" aria-label="Закрыть">✕</button>
+    <h3>Реклама</h3>
+    <p class="muted">Тут будет донат / ссылки</p>
+    <button type="button" class="btn-primary" onclick="closeAd()">Закрыть</button>
+  </div>
 </div>
 
-<div id="messages"></div>
-
-<div class="bottom">
-<input id="msgInput" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')send()">
-
-<button class="resetBtn" onclick="resetChat()">🔄</button>
-<button class="sendBtn" onclick="send()">➤</button>
-</div>
-
-</div>
-
-<!-- CREATE -->
-<div class="popup" id="createPopup">
-<div class="popupBox">
-<button class="closeBtn" onclick="closeCreate()">✖</button>
-
-<h3>Создать бота</h3>
-
-<input id="name" placeholder="Имя">
-<textarea id="personality" placeholder="Характер" rows="3"></textarea>
-<textarea id="scenario" placeholder="Сюжет" rows="3"></textarea>
-<input id="avatar" placeholder="Ссылка на аватар (URL)">
-
-<select id="genre">
-<option>Аниме</option>
-<option>Фэнтези</option>
-<option>Романтика</option>
-</select>
-
-<select id="gender">
-<option value="female">Женский</option>
-<option value="male">Мужской</option>
-</select>
-
-<button onclick="createBot()">Создать</button>
-</div>
-</div>
-
-<!-- SETTINGS -->
-<div class="popup" id="settingsPopup">
-<div class="popupBox">
-<button class="closeBtn" onclick="closeSettings()">✖</button>
-
-<h3>Настройки</h3>
-<button onclick="openAd()">💖 Поддержать автора</button>
-<div class="small">Спасибо ❤️</div>
-</div>
-</div>
-
-<!-- CHATS LIST -->
-<div class="popup" id="chatsPopup">
-<div class="popupBox" style="width:480px;max-width:95vw;">
-<button class="closeBtn" onclick="closeChats()">✖</button>
-
-<h3>💬 Чаты</h3>
-<div id="chatsList" class="chatsList"></div>
-<div class="small" id="chatsEmpty" style="display:none;">Пока нет сохранённых диалогов</div>
-</div>
-</div>
-
-<!-- AD -->
-<div class="popup" id="adPopup">
-<div class="popupBox">
-<button class="closeBtn" onclick="closeAd()">✖</button>
-
-<h3>Реклама</h3>
-<div class="small">Тут будет донат / ссылки</div>
-<button onclick="closeAd()">Закрыть</button>
-</div>
-</div>
-
-<script>
-
-let bots=[];
-let currentBot=null;
-let chatId=Date.now();
-let sending=false;
-let typingEl=null;
-
-const messages=document.getElementById("messages");
-const createPopup=document.getElementById("createPopup");
-const settingsPopup=document.getElementById("settingsPopup");
-const adPopup=document.getElementById("adPopup");
-const chatsPopup=document.getElementById("chatsPopup");
-
-const STORAGE_KEY='drumai_storage_v1';
-const MEMORY_LIMIT=30;
-const TYPEWRITER_MIN_MS=10;
-const TYPEWRITER_MAX_MS=28;
-
-/* =========================
-   LOCAL STORAGE (сохранение данных)
-   ========================= */
-function getDefaultStorage(){
-    return {
-        bots:[],
-        sessions:[],
-        messages:{}
-    };
-}
-
-function loadStorageData(){
-    try{
-        let raw=localStorage.getItem(STORAGE_KEY);
-        if(!raw) return getDefaultStorage();
-
-        let data=JSON.parse(raw);
-        return {
-            bots:Array.isArray(data.bots)?data.bots:[],
-            sessions:Array.isArray(data.sessions)?data.sessions:[],
-            messages:(data.messages && typeof data.messages==='object')?data.messages:{}
-        };
-    }catch(err){
-        console.error('loadStorageData',err);
-        return getDefaultStorage();
-    }
-}
-
-function saveStorageData(data){
-    try{
-        let payload={
-            bots:Array.isArray(data.bots)?data.bots:[],
-            sessions:Array.isArray(data.sessions)?data.sessions:[],
-            messages:(data.messages && typeof data.messages==='object')?data.messages:{}
-        };
-        localStorage.setItem(STORAGE_KEY,JSON.stringify(payload));
-        return true;
-    }catch(err){
-        console.error('saveStorageData',err);
-        return false;
-    }
-}
-
-function normalizeBot(bot){
-    if(!bot) return null;
-    return {
-        id:bot.id,
-        name:bot.name||'Персонаж',
-        personality:bot.personality||'',
-        scenario:bot.scenario||'',
-        avatar:bot.avatar||'https://i.imgur.com/8Km9tLL.png',
-        genre:bot.genre||'Другое',
-        gender:bot.gender||'female',
-        greeting:bot.greeting||'',
-        exampleDialogue:bot.exampleDialogue||'',
-        mood:bot.mood||'neutral'
-    };
-}
-
-function mergeBots(serverBots,localBots){
-    let map=new Map();
-
-    (localBots||[]).forEach(b=>{
-        let n=normalizeBot(b);
-        if(n) map.set(String(n.id),n);
-    });
-
-    (serverBots||[]).forEach(b=>{
-        let key=String(b.id);
-        let prev=map.get(key)||{};
-        map.set(key,normalizeBot({...prev,...b}));
-    });
-
-    return Array.from(map.values());
-}
-
-function saveBotsToStorage(list){
-    let data=loadStorageData();
-    data.bots=list||[];
-    saveStorageData(data);
-}
-
-function saveBotToStorage(bot){
-    if(!bot) return;
-    let data=loadStorageData();
-    let idx=data.bots.findIndex(b=>String(b.id)===String(bot.id));
-    if(idx>=0) data.bots[idx]={...data.bots[idx],...bot};
-    else data.bots.push(bot);
-    saveStorageData(data);
-}
-
-function removeBotFromStorage(botId){
-    let data=loadStorageData();
-    data.bots=data.bots.filter(b=>String(b.id)!==String(botId));
-
-    let removed=data.sessions.filter(s=>String(s.botId)===String(botId));
-    removed.forEach(s=>{
-        delete data.messages[String(s.chatId)];
-    });
-
-    data.sessions=data.sessions.filter(s=>String(s.botId)!==String(botId));
-    saveStorageData(data);
-}
-
-function registerChatSession(bot,cid){
-    if(!bot || !cid) return;
-
-    let data=loadStorageData();
-    let key=String(cid);
-    let exists=data.sessions.find(s=>String(s.chatId)===key);
-
-    if(!exists){
-        data.sessions.unshift({
-            chatId:cid,
-            botId:bot.id,
-            botName:bot.name||'Бот',
-            botAvatar:bot.avatar||'',
-            title:bot.name||'Чат',
-            lastMessage:'',
-            updatedAt:Date.now(),
-            createdAt:Date.now()
-        });
-    }else{
-        exists.botName=bot.name||exists.botName;
-        exists.botAvatar=bot.avatar||exists.botAvatar;
-        exists.title=bot.name||exists.title;
-    }
-
-    saveStorageData(data);
-}
-
-function updateChatSessionMeta(cid,previewText){
-    let data=loadStorageData();
-    let session=data.sessions.find(s=>String(s.chatId)===String(cid));
-    if(!session) return;
-
-    session.lastMessage=(previewText||'').slice(0,120);
-    session.updatedAt=Date.now();
-
-    data.sessions.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-    saveStorageData(data);
-}
-
-function getChatMessages(cid){
-    let data=loadStorageData();
-    let list=data.messages[String(cid)];
-    return Array.isArray(list)?list:[];
-}
-
-function persistChatMessage(cid,text,isUser,opts){
-    opts=opts||{};
-    if(!cid) return;
-
-    let data=loadStorageData();
-    let key=String(cid);
-
-    if(!data.messages[key]) data.messages[key]=[];
-
-    data.messages[key].push({
-        role:isUser?'user':'assistant',
-        text:String(text||''),
-        ts:Date.now(),
-        scenario:!!opts.scenario,
-        opening:!!opts.opening
-    });
-
-    let session=data.sessions.find(s=>String(s.chatId)===key);
-    if(session){
-        session.lastMessage=String(text||'').slice(0,120);
-        session.updatedAt=Date.now();
-        data.sessions.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-    }
-
-    saveStorageData(data);
-}
-
-function findLatestSessionForBot(botId){
-    let data=loadStorageData();
-    let list=data.sessions
-        .filter(s=>String(s.botId)===String(botId))
-        .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-
-    return list[0]||null;
-}
-
-function renderChatHistoryFromStorage(cid){
-    if(!messages || !cid) return;
-
-    let history=getChatMessages(cid);
-    messages.innerHTML='';
-
-    history.forEach(m=>{
-        if(!m) return;
-        appendMessage(m.text,m.role==='user',{persist:false});
-    });
-
-    scrollMessages();
-}
-
-/* =========================
-   HELPERS
-   ========================= */
-function escapeHtml(str){
-    return String(str ?? '')
-        .replace(/&/g,'&amp;')
-        .replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;')
-        .replace(/"/g,'&quot;');
-}
-
-function escapeAttr(str){
-    return escapeHtml(str).replace(/'/g,'&#39;');
-}
-
-function getSearchQuery(){
-    let el=document.getElementById('searchInput');
-    return el ? el.value.trim() : '';
-}
-
-function refreshBotList(){
-    if(!Array.isArray(bots)) bots=[];
-    let q=getSearchQuery();
-    if(q) searchBots(q);
-    else render();
-}
-
-function resolveBot(botId,session){
-    if(botId==null) return null;
-
-    let bot=bots.find(b=>String(b.id)===String(botId));
-    if(bot) return bot;
-
-    let data=loadStorageData();
-    bot=(data.bots||[]).find(b=>String(b.id)===String(botId));
-    if(bot){
-        bots.push(bot);
-        saveBotsToStorage(bots);
-        return bot;
-    }
-
-    if(session){
-        return normalizeBot({
-            id:session.botId,
-            name:session.botName||'Бот',
-            avatar:session.botAvatar||'',
-            personality:'',
-            scenario:'',
-            genre:'',
-            gender:'female',
-            greeting:'',
-            exampleDialogue:'',
-            mood:'neutral'
-        });
-    }
-
-    return null;
-}
-
-function showPopup(el){
-    if(el) el.style.display='flex';
-}
-
-function hidePopup(el){
-    if(el) el.style.display='none';
-}
-
-function buildBotCardHTML(b){
-    return `
-        <div class="botCard" onclick="openChat(${b.id})">
-            <img src="${escapeAttr(b.avatar)}" alt="${escapeAttr(b.name)}">
-            <div class="botInfo">
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                    <div class="botName">${escapeHtml(b.name)}</div>
-                    <button class="deleteBtn"
-                    onclick="event.stopPropagation(); deleteBot(${b.id})">✖</button>
-                </div>
-                <div class="botGenre">${escapeHtml(b.genre)}</div>
-            </div>
-        </div>`;
-}
-
-function scrollMessages(){
-    if(!messages) return;
-    messages.scrollTop=messages.scrollHeight;
-}
-
-function appendMessage(text,isUser,opts){
-    if(!messages) return null;
-    opts=opts||{};
-
-    let el=document.createElement('div');
-    el.className='msg'+(isUser?' user':'');
-    el.textContent=text;
-    messages.appendChild(el);
-    scrollMessages();
-
-    if(opts.persist!==false && chatId && currentBot){
-        persistChatMessage(chatId,text,isUser,{
-            scenario:!!opts.scenario,
-            opening:!!opts.opening
-        });
-    }
-
-    return el;
-}
-
-function buildApiHistory(cid){
-    if(!cid) return [];
-
-    return getChatMessages(cid)
-        .filter(m=>{
-            if(!m || !m.text) return false;
-            if(m.scenario) return false;
-            if(m.opening) return false;
-            return true;
-        })
-        .slice(-MEMORY_LIMIT)
-        .map(m=>({
-            role:m.role==='user'?'user':'assistant',
-            content:String(m.text||'').trim()
-        }))
-        .filter(m=>m.content);
-}
-
-function delay(ms){
-    return new Promise(r=>setTimeout(r,ms));
-}
-
-async function appendMessageTypewriter(text,opts){
-    opts=opts||{};
-    hideTyping();
-
-    if(!messages) return null;
-
-    let fullText=String(text||'').trim();
-    if(!fullText) fullText='…';
-
-    let el=document.createElement('div');
-    el.className='msg';
-    messages.appendChild(el);
-
-    let built='';
-    for(let i=0;i<fullText.length;i++){
-        built+=fullText[i];
-        el.textContent=built;
-        scrollMessages();
-        await delay(TYPEWRITER_MIN_MS+Math.random()*(TYPEWRITER_MAX_MS-TYPEWRITER_MIN_MS));
-    }
-
-    if(opts.persist!==false && chatId && currentBot){
-        persistChatMessage(chatId,fullText,false,opts);
-    }
-
-    return el;
-}
-
-function showOpeningMessages(){
-    if(!currentBot || !chatId) return;
-
-    let history=getChatMessages(chatId);
-    if(history.length) return;
-
-    currentBot=normalizeBot(currentBot);
-
-    let greeting=(currentBot.greeting||'').trim();
-    let scenario=(currentBot.scenario||'').trim();
-
-    if(greeting){
-        appendMessage(greeting,false,{opening:true});
-    }
-
-    if(scenario){
-        appendMessage('📖 '+scenario,false,{scenario:true});
-    }
-}
-
-function showScenarioIntro(){
-    showOpeningMessages();
-}
-
-function showTyping(){
-    if(!messages) return;
-    hideTyping();
-    typingEl=document.createElement('div');
-    typingEl.className='msg typing';
-    typingEl.id='typingIndicator';
-    typingEl.textContent='печатает...';
-    messages.appendChild(typingEl);
-    scrollMessages();
-}
-
-function hideTyping(){
-    if(typingEl && typingEl.parentNode){
-        typingEl.remove();
-    }
-    typingEl=null;
-    let stuck=document.getElementById('typingIndicator');
-    if(stuck) stuck.remove();
-}
-
-function sanitizeReply(reply,bot){
-    if(!reply || typeof reply!=='string') return '';
-    let out=reply.trim();
-    if(!bot) return out;
-
-    let scenario=(bot.scenario||'').trim();
-    if(scenario){
-        out=out.split(scenario).join('').trim();
-    }
-
-    out=out.replace(/📖\s*Сюжет\s*:\s*/gi,'');
-    out=out.replace(/^Сюжет\s*:\s*/gim,'');
-    out=out.replace(/\n{3,}/g,'\n\n');
-
-    return out.trim();
-}
-
-/* =========================
-   LOAD BOTS
-   ========================= */
-async function loadBots(){
-    let localData=loadStorageData();
-    let localBots=Array.isArray(localData.bots)?localData.bots:[];
-
-    bots=localBots.slice();
-    refreshBotList();
-
-    try{
-        let r=await fetch('/bots');
-        let serverBots=await r.json();
-        if(!Array.isArray(serverBots)) serverBots=[];
-        bots=mergeBots(serverBots,localBots);
-    }catch(err){
-        console.error(err);
-        bots=localBots.slice();
-    }
-
-    if(!Array.isArray(bots)) bots=[];
-    saveBotsToStorage(bots);
-    refreshBotList();
-}
-
-/* =========================
-   RENDER + SEARCH
-   ========================= */
-function renderBotList(list){
-    let box=document.getElementById('botList');
-    if(!box) return;
-
-    box.innerHTML='';
-    let items=Array.isArray(list)?list:[];
-
-    items.forEach(b=>{
-        if(!b || b.id==null) return;
-        box.innerHTML+=buildBotCardHTML(b);
-    });
-}
-
-function render(){
-    if(!Array.isArray(bots)) bots=[];
-    renderBotList(bots);
-}
-
-function searchBots(value){
-    if(!Array.isArray(bots)) bots=[];
-
-    let q=(value||'').trim().toLowerCase();
-    if(!q){
-        render();
-        return;
-    }
-
-    let filtered=bots.filter(b=>
-        b && (
-            String(b.name||'').toLowerCase().includes(q) ||
-            String(b.genre||'').toLowerCase().includes(q)
-        )
-    );
-
-    renderBotList(filtered);
-}
-
-/* =========================
-   CREATE BOT
-   ========================= */
-async function createBot(){
-    let name=document.getElementById('name').value.trim();
-    let personality=document.getElementById('personality').value.trim();
-
-    if(!name || !personality){
-        alert('Заполни имя и характер бота');
-        return;
-    }
-
-    try{
-        let res=await fetch('/create-bot',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-                name:name,
-                personality:personality,
-                scenario:document.getElementById('scenario').value,
-                avatar:document.getElementById('avatar').value,
-                genre:document.getElementById('genre').value,
-                gender:document.getElementById('gender').value
-            })
-        });
-
-        let data=await res.json();
-        if(data && data.success===false){
-            alert(data.error || 'Не удалось создать бота');
-            return;
-        }
-
-        if(data && data.bot){
-            saveBotToStorage(normalizeBot(data.bot));
-        }
-
-        document.getElementById('name').value='';
-        document.getElementById('personality').value='';
-        document.getElementById('scenario').value='';
-        document.getElementById('avatar').value='';
-
-        closeCreate();
-        await loadBots();
-    }catch(err){
-        console.error(err);
-
-        let fallbackBot=normalizeBot({
-            id:Date.now(),
-            name:name,
-            personality:personality,
-            scenario:document.getElementById('scenario').value,
-            avatar:document.getElementById('avatar').value||
-                'https://i.imgur.com/8Km9tLL.png',
-            genre:document.getElementById('genre').value,
-            gender:document.getElementById('gender').value,
-            greeting:'',
-            exampleDialogue:'',
-            mood:'neutral'
-        });
-
-        saveBotToStorage(fallbackBot);
-        bots=loadStorageData().bots||[];
-        if(!Array.isArray(bots)) bots=[];
-        closeCreate();
-        refreshBotList();
-        alert('Сервер недоступен — бот сохранён локально');
-    }
-}
-
-/* =========================
-   DELETE BOT (CONFIRM)
-   ========================= */
-async function deleteBot(id){
-    let ok=confirm("Точно удалить этого бота?");
-    if(!ok) return;
-
-    try{
-        await fetch('/delete-bot',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({id})
-        });
-        removeBotFromStorage(id);
-        await loadBots();
-    }catch(err){
-        console.error(err);
-        removeBotFromStorage(id);
-        bots=loadStorageData().bots;
-        refreshBotList();
-        alert('Сервер недоступен — бот удалён локально');
-    }
-}
-
-/* =========================
-   CHATS (сохранённые диалоги)
-   ========================= */
-function formatChatDate(ts){
-    if(!ts) return '';
-    let d=new Date(ts);
-    return d.toLocaleString('ru-RU',{
-        day:'2-digit',
-        month:'2-digit',
-        hour:'2-digit',
-        minute:'2-digit'
-    });
-}
-
-function renderChatsList(){
-    let box=document.getElementById('chatsList');
-    let empty=document.getElementById('chatsEmpty');
-    if(!box) return;
-
-    let data=loadStorageData();
-    let sessions=(data.sessions||[]).slice()
-        .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-
-    box.innerHTML='';
-
-    if(!sessions.length){
-        if(empty) empty.style.display='block';
-        return;
-    }
-
-    if(empty) empty.style.display='none';
-
-    sessions.forEach(s=>{
-        let bot=bots.find(b=>String(b.id)===String(s.botId));
-        let avatar=s.botAvatar||(bot&&bot.avatar)||'';
-        let name=s.botName||(bot&&bot.name)||'Чат';
-        let preview=s.lastMessage||'Нет сообщений';
-
-        box.innerHTML+=`
-        <div class="chatSessionItem" onclick="resumeChatSession(${s.chatId})">
-            <img src="${escapeAttr(avatar)}" alt="">
-            <div class="chatSessionMeta">
-                <div class="chatSessionName">${escapeHtml(name)}</div>
-                <div class="chatSessionPreview">${escapeHtml(preview)}</div>
-                <div class="chatSessionDate">${escapeHtml(formatChatDate(s.updatedAt))}</div>
-            </div>
-        </div>`;
-    });
-}
-
-function openChats(){
-    let mainPage=document.getElementById('mainPage');
-    let chatPage=document.getElementById('chatPage');
-    if(mainPage) mainPage.style.display='flex';
-    if(chatPage) chatPage.style.display='none';
-    renderChatsList();
-    showPopup(chatsPopup);
-}
-
-function closeChats(){
-    hidePopup(chatsPopup);
-}
-
-function openChatUI(){
-    if(!currentBot) return;
-
-    let mainPage=document.getElementById('mainPage');
-    let chatPage=document.getElementById('chatPage');
-    let chatAvatar=document.getElementById('chatAvatar');
-    let chatName=document.getElementById('chatName');
-
-    if(mainPage) mainPage.style.display='none';
-    if(chatPage) chatPage.style.display='flex';
-    if(chatAvatar) chatAvatar.src=currentBot.avatar||'';
-    if(chatName) chatName.innerText=currentBot.name||'';
-}
-
-function resumeChatSession(cid){
-    if(cid==null) return;
-
-    let data=loadStorageData();
-    let session=(data.sessions||[]).find(s=>String(s.chatId)===String(cid));
-    if(!session){
-        alert('Чат не найден');
-        return;
-    }
-
-    currentBot=resolveBot(session.botId,session);
-    if(!currentBot){
-        alert('Бот для этого чата не найден');
-        return;
-    }
-
-    currentBot=normalizeBot(currentBot);
-
-    chatId=session.chatId;
-    closeChats();
-    openChatUI();
-
-    if(!messages) return;
-
-    let history=getChatMessages(chatId);
-    if(history.length){
-        renderChatHistoryFromStorage(chatId);
-    }else{
-        messages.innerHTML='';
-        showScenarioIntro();
-    }
-}
-
-function startNewChatSession(){
-    if(!currentBot) return;
-
-    chatId=Date.now();
-    registerChatSession(currentBot,chatId);
-
-    if(messages) messages.innerHTML='';
-    showScenarioIntro();
-}
-
-/* =========================
-   CHAT OPEN
-   ========================= */
-function openChat(id){
-    if(id==null) return;
-
-    currentBot=resolveBot(id,null);
-    if(!currentBot){
-        alert('Бот не найден');
-        return;
-    }
-
-    currentBot=normalizeBot(currentBot);
-
-    let latest=findLatestSessionForBot(id);
-    closeChats();
-    openChatUI();
-
-    if(latest && latest.chatId!=null){
-        chatId=latest.chatId;
-        let history=getChatMessages(chatId);
-        if(history.length){
-            renderChatHistoryFromStorage(chatId);
-            return;
-        }
-        if(messages) messages.innerHTML='';
-        showScenarioIntro();
-        return;
-    }
-
-    startNewChatSession();
-}
-
-/* =========================
-   RESET CHAT
-   ========================= */
-function resetChat(){
-    if(!confirm("Новый чат?")) return;
-    if(!currentBot) return;
-    startNewChatSession();
-}
-
-/* =========================
-   AI API (OpenRouter через сервер)
-   ========================= */
-function getBotPayload(){
-    if(!currentBot) return null;
-    let b=normalizeBot(currentBot);
-    return {
-        name:b.name,
-        personality:b.personality,
-        scenario:b.scenario,
-        gender:b.gender,
-        genre:b.genre,
-        greeting:b.greeting,
-        exampleDialogue:b.exampleDialogue,
-        mood:b.mood
-    };
-}
-
-async function fetchAIReply(userText){
-    if(!currentBot || !chatId) return '';
-
-    let history=buildApiHistory(chatId);
-
-    let res=await fetch('/chat',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-            botId:currentBot.id,
-            chatId:chatId,
-            message:userText,
-            history:history,
-            bot:getBotPayload()
-        })
-    });
-
-    let data=await res.json();
-    if(!data || data.error){
-        throw new Error((data && data.message) || 'AI error');
-    }
-
-    return sanitizeReply(data.reply,currentBot);
-}
-
-/* /* =========================
-   AI ENGINE (локальный fallback)
-   ========================= */
-
-function generateReply(text, bot){
-
-    let t = (text || '').toLowerCase();
-    let isFemale = bot.gender === 'female';
-    let name = bot.name || 'персонаж';
-
-    if(bot.greeting && t.includes('привет')){
-        return bot.greeting;
-    }
-
-    if(t.includes('привет')){
-        return isFemale
-            ? `*улыбается* Привет. Я ${name}.`
-            : `*кивает* Привет. Я ${name}.`;
-    }
-
-    if(t.includes('люблю')){
-        return isFemale
-            ? `*смотрит с интересом*\n\nНе ожидала услышать такое.`
-            : `*усмехнулся*\n\nИнтересное заявление.`;
-    }
-
-    if(t.includes('грустно') || t.includes('плохо')){
-        return isFemale
-            ? `*садится рядом*\n\nСегодня явно не лучший день…`
-            : `*вздохнул*\n\nБывают тяжёлые дни.`;
-    }
-
-    let trait = (bot.personality || '').trim();
-
-    if(trait){
-        return [
-            `*задумался*\n\n${trait}`,
-            `*усмехнулся*\n\nНу это уже ближе к делу.`,
-            `*посмотрел внимательно*\n\nНе всё так очевидно.`,
-            `*слегка улыбнулся*\n\nЛюбопытно получилось.`,
-            `*наклонил голову*\n\nУ меня есть мысли по этому поводу.`
-        ][Math.floor(Math.random()*5)];
-    }
-
-    const randomReplies = [
-        `*усмехнулся*\n\nНеожиданный ход.`,
-        `*посмотрел внимательно*\n\nВот это уже интереснее.`,
-        `*задумался*\n\nНе уверен что всё настолько просто.`,
-        `*слегка кивнул*\n\nПродолжим.`,
-        `*вздохнул*\n\nМир странная штука.`,
-        `*прищурился*\n\nЕсть ощущение что это ещё не конец.`,
-        `*улыбнулся уголком губ*\n\nМне нравится куда всё идёт.`,
-        `*отвёл взгляд*\n\nХм. Любопытно.`
-    ];
-
-    return randomReplies[
-        Math.floor(Math.random()*randomReplies.length)
-    ];
-}
-
-/* =========================
-   SEND
-   ========================= */
-async function send(){
-    if(sending) return;
-
-    if(!currentBot){
-        alert('Сначала выбери бота из списка');
-        return;
-    }
-
-    currentBot=normalizeBot(currentBot);
-
-    if(!chatId) chatId=Date.now();
-
-    registerChatSession(currentBot,chatId);
-
-    let input=document.getElementById('msgInput');
-    if(!input) return;
-
-    let text=input.value.trim();
-    if(!text) return;
-
-    input.value='';
-    sending=true;
-
-    let reply='';
-
-    try{
-        appendMessage(text,true);
-        showTyping();
-
-        reply=await fetchAIReply(text);
-
-        if(!reply){
-            reply=generateReply(text,currentBot);
-        }
-    }catch(err){
-        console.error(err);
-        hideTyping();
-        reply=generateReply(text,currentBot);
-        if(!reply) reply='Не удалось получить ответ. Проверь сервер и API ключ.';
-    }
-
-    hideTyping();
-
-    if(!reply) reply='…';
-
-    try{
-        await appendMessageTypewriter(reply,{persist:true});
-    }catch(err){
-        console.error(err);
-        appendMessage(reply,false);
-    }finally{
-        sending=false;
-    }
-}
-
-/* =========================
-   BACK
-   ========================= */
-function back(){
-    document.getElementById('mainPage').style.display='flex';
-    document.getElementById('chatPage').style.display='none';
-}
-
-/* =========================
-   POPUPS
-   ========================= */
-function openCreate(){showPopup(createPopup)}
-function closeCreate(){hidePopup(createPopup)}
-function openSettings(){showPopup(settingsPopup)}
-function closeSettings(){hidePopup(settingsPopup)}
-function openAd(){showPopup(adPopup)}
-function closeAd(){hidePopup(adPopup)}
-
-/* =========================
-   INIT
-   ========================= */
-loadBots();
-
-</script>
+<script src="script.js"></script>
 </body>
 </html>

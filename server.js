@@ -15,7 +15,7 @@ function loadEnvFile() {
             const key = trimmed.slice(0, eq).trim();
             let val = trimmed.slice(eq + 1).trim();
             val = val.replace(/^["']|["']$/g, '');
-            if (key && process.env[key] === undefined) {
+            if (key) {
                 process.env[key] = val;
             }
         }
@@ -26,9 +26,13 @@ function loadEnvFile() {
 
 loadEnvFile();
 
+const { setupAuth } = require('./auth');
+
 const app = express();
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '10mb' }));
+setupAuth(app);
 
 app.use(
     express.static(
@@ -40,6 +44,7 @@ const BOTS_FILE = path.join(__dirname, 'bots.json');
 const CHATS_FILE = path.join(__dirname, 'chats.json');
 
 const MEMORY_LIMIT = 30;
+const APP_NAME = process.env.APP_NAME || 'drum.ai';
 const OPENROUTER_API_KEY =
 process.env.OPENROUTER_API_KEY || '';
 const OPENROUTER_MODEL =
@@ -75,7 +80,10 @@ function normalizeBot(bot) {
         gender: bot.gender || 'female',
         greeting: bot.greeting || '',
         exampleDialogue: bot.exampleDialogue || '',
-        mood: bot.mood || 'neutral'
+        mood: bot.mood || 'neutral',
+        authorName: bot.authorName || '',
+        authorEmail: bot.authorEmail || '',
+        authorAvatar: bot.authorAvatar || ''
     };
 }
 
@@ -153,8 +161,8 @@ async function callOpenRouter(messages) {
             headers: {
     Authorization: `Bearer ${OPENROUTER_API_KEY}`,
     'Content-Type': 'application/json',
-    'HTTP-Referer': 'http://localhost:3000',
-    'X-Title': 'drum.ai'
+    'HTTP-Referer': process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000',
+    'X-Title': APP_NAME
 },
             body: JSON.stringify({
                 model: OPENROUTER_MODEL,
@@ -215,6 +223,14 @@ app.post('/create-bot', (req, res) => {
         });
     }
 
+    const sessionUser = req.session && req.session.user;
+    if (!sessionUser || !sessionUser.email) {
+        return res.json({
+            success: false,
+            error: 'Войди через Google, чтобы создать бота'
+        });
+    }
+
     const bots = load(BOTS_FILE, []);
 
     const bot = normalizeBot({
@@ -227,7 +243,10 @@ app.post('/create-bot', (req, res) => {
         gender: gender || 'female',
         greeting: greeting || '',
         exampleDialogue: exampleDialogue || '',
-        mood: mood || 'neutral'
+        mood: mood || 'neutral',
+        authorName: sessionUser.name || req.body.authorName || '',
+        authorEmail: sessionUser.email || req.body.authorEmail || '',
+        authorAvatar: sessionUser.avatar || req.body.authorAvatar || ''
     });
 
     bots.push(bot);
@@ -344,9 +363,21 @@ app.post('/chat', async (req, res) => {
 });
 
 // ---------------- START ----------------
-app.listen(3000, () => {
-    console.log('SERVER RUNNING http://localhost:3000');
+app.listen(PORT, () => {
+    console.log(`${APP_NAME} — http://localhost:${PORT}`);
     if (!OPENROUTER_API_KEY) {
         console.log('WARNING: set OPENROUTER_API_KEY in .env');
+    }
+    const gid = (process.env.GOOGLE_CLIENT_ID || '').trim();
+    if (!gid || !process.env.GOOGLE_CLIENT_SECRET) {
+        console.log('WARNING: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env for login');
+    } else {
+        console.log(`Google OAuth: client …${gid.slice(-8)}`);
+        const base =
+            (process.env.GOOGLE_REDIRECT_URI || '').trim() ||
+            (process.env.BASE_URL || '').trim() ||
+            (process.env.RENDER_EXTERNAL_URL || '').trim() ||
+            `http://localhost:${PORT}`;
+        console.log(`OAuth callback: ${base.replace(/\/$/, '')}/auth/google/callback`);
     }
 });
