@@ -37,6 +37,7 @@ let rewardAdTimer = null;
 let rewardAdStartedAt = 0;
 let rewardAdViewing = false;
 let rewardAdCompleted = false;
+let rewardAdLoaded = false;
 
 let currentUser = null;
 const MEMORY_LIMIT = 30;
@@ -1114,44 +1115,75 @@ function goToPurchaseMessages() {
 }
 
 async function startRewardAd() {
+  if (rewardAdViewing) return;
+  rewardAdViewing = true;
+  rewardAdCompleted = false;
+  rewardAdLoaded = false;
+  
   if (messagesLimitPopup) {
     const choices = document.getElementById('limitPopupChoices');
     const adSection = document.getElementById('limitPopupAd');
     if (choices) choices.classList.add('hidden');
     if (adSection) adSection.classList.remove('hidden');
     
-    // Load ad
+    // Clear previous ad and create new container
     const adSlot = document.getElementById('rewardAdSlot');
-    if (adSlot && window.adsbygoogle) {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (err) {
-        console.error('Ad load error', err);
+    if (adSlot) {
+      adSlot.innerHTML = '';
+      const newAd = document.createElement('ins');
+      newAd.className = 'adsbygoogle';
+      newAd.style.display = 'block';
+      newAd.setAttribute('data-ad-client', 'ca-pub-3098007197721707');
+      newAd.setAttribute('data-ad-format', 'auto');
+      newAd.setAttribute('data-full-width-responsive', 'true');
+      adSlot.appendChild(newAd);
+      
+      // Load ad
+      if (window.adsbygoogle) {
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          rewardAdLoaded = true;
+        } catch (err) {
+          console.error('Ad load error', err);
+          rewardAdLoaded = false;
+        }
       }
     }
     
-    // Start countdown
-    let countdown = AD_VIEW_MIN_MS / 1000;
-    const countdownEl = document.getElementById('adCountdown');
-    if (countdownEl) {
-      countdownEl.textContent = `Осталось: ${countdown} сек`;
-      rewardAdTimer = setInterval(() => {
-        countdown--;
-        if (countdownEl) countdownEl.textContent = `Осталось: ${countdown} сек`;
-        if (countdown <= 0) {
-          clearInterval(rewardAdTimer);
-          rewardAdCompleted = true;
-          if (countdownEl) countdownEl.textContent = 'Реклама просмотрена!';
-          // Grant reward
-          addBalance(AD_REWARD_MESSAGES).then(() => {
-            updateMessageBalanceUI();
-            applyChatInputLock();
-            setTimeout(() => {
-              closeMessagesLimitPopup();
-            }, 1500);
-          });
-        }
-      }, 1000);
+    // Start countdown only if ad loaded
+    if (rewardAdLoaded) {
+      let countdown = AD_VIEW_MIN_MS / 1000;
+      const countdownEl = document.getElementById('adCountdown');
+      if (countdownEl) {
+        countdownEl.textContent = `Осталось: ${countdown} сек`;
+        rewardAdTimer = setInterval(() => {
+          countdown--;
+          if (countdownEl) countdownEl.textContent = `Осталось: ${countdown} сек`;
+          if (countdown <= 0) {
+            clearInterval(rewardAdTimer);
+            rewardAdCompleted = true;
+            if (countdownEl) countdownEl.textContent = 'Реклама просмотрена!';
+            // Grant reward
+            addBalance(AD_REWARD_MESSAGES).then(() => {
+              updateMessageBalanceUI();
+              applyChatInputLock();
+              setTimeout(() => {
+                closeMessagesLimitPopup();
+                rewardAdViewing = false;
+              }, 1500);
+            });
+          }
+        }, 1000);
+      }
+    } else {
+      // Ad failed to load, show error and go back
+      const countdownEl = document.getElementById('adCountdown');
+      if (countdownEl) countdownEl.textContent = 'Реклама не загрузилась';
+      setTimeout(() => {
+        if (choices) choices.classList.remove('hidden');
+        if (adSection) adSection.classList.add('hidden');
+        rewardAdViewing = false;
+      }, 2000);
     }
   }
 }
@@ -1325,11 +1357,25 @@ function initChatInput() {
   }
 }
 
+function initPurchaseButtons() {
+  document.querySelectorAll('[data-purchase-pack]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const pack = btn.dataset.purchasePack;
+      if (pack === 'pack1000' || pack === 'pack5000') {
+        alert('Coming Soon');
+      } else {
+        alert('Оплата будет доступна позже');
+      }
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initCreateForm();
   initLiveWallpaper();
   initChatInput();
+  initPurchaseButtons();
   handleAuthRedirect();
   fetchAuth().then(() => updateCreateAccess());
   loadBots();
