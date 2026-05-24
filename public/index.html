@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3098007197721707"
+  crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -18,6 +20,25 @@
   <span class="shape shape-1"></span>
   <span class="shape shape-2"></span>
   <span class="shape shape-3"></span>
+</div>
+
+<!-- Video Background -->
+<video id="videoWallpaper" class="video-wallpaper" autoplay loop muted playsinline>
+  <source src="/backgrounds/Rainy tokyo.mp4.mp4" type="video/mp4">
+</video>
+<div class="video-overlay" aria-hidden="true"></div>
+
+<!-- ========== LOGIN SCREEN ========== -->
+<div id="loginScreen" class="login-screen hidden">
+  <div class="login-card glow-card">
+    <div class="login-icon" aria-hidden="true">🔒</div>
+    <h2 class="login-title">Войдите чтобы начать общение</h2>
+    <p class="login-text">Для использования чата войдите через Google</p>
+    <a href="/auth/google" class="btn-google btn-google-large">
+      <span class="btn-google-icon" aria-hidden="true">G</span>
+      Войти через Google
+    </a>
+  </div>
 </div>
 
 <!-- ========== APP SHELL ========== -->
@@ -192,7 +213,7 @@
         <button type="button" id="liveWallpaperToggle" class="toggle-pill" aria-pressed="true">Вкл/Выкл</button>
       </div>
       <div class="settings-divider"></div>
-      <button type="button" class="settings-action" onclick="openAd()">💖 Поддержать автора</button>
+      <button type="button" class="settings-action" onclick="navigateTo('balance')">💖 Пополнить сообщения</button>
       <p class="settings-note">Спасибо за поддержку ❤️</p>
     </div>
   </section>
@@ -204,14 +225,14 @@
     </button>
     <div class="balance-card glow-card">
       <p class="balance-header">Количество сообщений: <span id="msgBalance">100</span></p>
-      <button type="button" class="balance-pill">1000 Сообщений 0.99$</button>
-      <button type="button" class="balance-pill">5000 Сообщений 2.99$</button>
-      <button type="button" class="balance-pill">10000 Сообщений 3.99$</button>
-      <button type="button" class="balance-pill">Премиум Неделя 2.49$</button>
-      <button type="button" class="balance-pill">Премиум Месяц 6.99$</button>
-      <button type="button" class="balance-pill balance-pill-muted">Восстановить покупки</button>
-      <button type="button" class="balance-pill balance-pill-ad" onclick="openAd()">
-        Посмотреть рекламу<br>получить 100 сообщений
+      <button type="button" class="balance-pill" data-purchase-pack="pack1000">1000 Сообщений 0.99$</button>
+      <button type="button" class="balance-pill" data-purchase-pack="pack5000">5000 Сообщений 2.99$</button>
+      <button type="button" class="balance-pill" data-purchase-pack="pack10000">10000 Сообщений 3.99$</button>
+      <button type="button" class="balance-pill" data-purchase-pack="premiumWeek">Премиум Неделя 2.49$</button>
+      <button type="button" class="balance-pill" data-purchase-pack="premiumMonth">Премиум Месяц 6.99$</button>
+      <button type="button" class="balance-pill balance-pill-muted" id="btnRestorePurchases">Восстановить покупки</button>
+      <button type="button" class="balance-pill balance-pill-ad" onclick="startRewardAd()">
+        Посмотреть рекламу<br>получить 50 сообщений
       </button>
       <p class="balance-footer">Благодаря покупкам и рекламе<br>приложение остаётся бесплатным</p>
     </div>
@@ -240,6 +261,7 @@
     <img id="chatAvatar" class="chat-header-avatar" src="" alt="">
     <span id="chatName" class="chat-header-name"></span>
   </div>
+  <span id="chatMsgBalance" class="chat-balance-pill" title="Осталось сообщений">100</span>
 </header>
 
 <div id="messages" class="messages" role="log" aria-live="polite"></div>
@@ -247,20 +269,34 @@
 <footer class="chat-footer">
   <input id="msgInput" type="text" placeholder="Напиши что нибудь....." autocomplete="off">
   <button type="button" class="btn-reset" onclick="resetChat()" title="Новый чат">↻</button>
-  <button type="button" class="btn-send" onclick="send()" aria-label="Отправить">
+  <button type="button" id="btnSend" class="btn-send" onclick="send()" aria-label="Отправить">
     <span aria-hidden="true">→</span>
   </button>
 </footer>
 
 </div>
 
-<!-- AD popup -->
-<div class="overlay" id="adPopup" hidden>
+<!-- Сообщения закончились -->
+<div class="overlay" id="messagesLimitPopup" hidden>
   <div class="overlay-card glow-card">
-    <button type="button" class="overlay-close" onclick="closeAd()" aria-label="Закрыть">✕</button>
-    <h3>Реклама</h3>
-    <p class="muted">Тут будет донат / ссылки</p>
-    <button type="button" class="btn-primary" onclick="closeAd()">Закрыть</button>
+    <button type="button" class="overlay-close" id="messagesLimitClose" aria-label="Закрыть">✕</button>
+    <div id="limitPopupChoices">
+      <h3 class="overlay-title">Сообщения закончились</h3>
+      <p class="muted">Посмотри рекламу или купи сообщения</p>
+      <button type="button" class="btn-primary" onclick="startRewardAd()">Посмотреть рекламу (+50 сообщений)</button>
+      <button type="button" class="btn-secondary" onclick="goToPurchaseMessages()">Открыть магазин сообщений</button>
+    </div>
+    <div id="limitPopupAd" class="limit-popup-ad" hidden>
+      <p class="muted limit-ad-hint">Не закрывай окно до окончания рекламы</p>
+      <div id="rewardAdSlot" class="reward-ad-slot">
+        <ins class="adsbygoogle"
+          style="display:block"
+          data-ad-client="ca-pub-3098007197721707"
+          data-ad-format="auto"
+          data-full-width-responsive="true"></ins>
+      </div>
+      <p id="adCountdown" class="ad-countdown"></p>
+    </div>
   </div>
 </div>
 

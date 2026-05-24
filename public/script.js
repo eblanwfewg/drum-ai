@@ -10,11 +10,33 @@ let currentView = 'discover';
 const messages = document.getElementById('messages');
 const chatPage = document.getElementById('chatPage');
 const appShell = document.getElementById('appShell');
-const adPopup = document.getElementById('adPopup');
+const messagesLimitPopup = document.getElementById('messagesLimitPopup');
+const loginScreen = document.getElementById('loginScreen');
 
 const STORAGE_KEY = 'drumai_storage_v1';
 const WALLPAPER_KEY = 'drumai_live_wallpaper';
 const USER_KEY = 'drumai_user_v1';
+const MESSAGE_BALANCE_KEY = 'drumai_message_balance_v1';
+const PURCHASE_BACKUP_KEY = 'drumai_purchase_backup_v1';
+
+const INITIAL_MESSAGE_BALANCE = 100;
+const AD_REWARD_MESSAGES = 50;
+const AD_VIEW_MIN_MS = 8000;
+
+let serverBalance = 0;
+
+const PURCHASE_PACKS = {
+  pack1000: { messages: 1000, label: '1000 сообщений за 0.99$' },
+  pack5000: { messages: 5000, label: '5000 сообщений за 2.99$' },
+  pack10000: { messages: 10000, label: '10000 сообщений за 3.99$' },
+  premiumWeek: { messages: 0, label: 'Премиум на неделю', premium: true },
+  premiumMonth: { messages: 0, label: 'Премиум на месяц', premium: true },
+};
+
+let rewardAdTimer = null;
+let rewardAdStartedAt = 0;
+let rewardAdViewing = false;
+let rewardAdCompleted = false;
 
 let currentUser = null;
 const MEMORY_LIMIT = 30;
@@ -56,6 +78,9 @@ function navigateTo(view) {
   if (view === 'search') initSearchView();
   if (view === 'discover') refreshBotList();
   if (view === 'create') updateCreateAccess();
+  if (view === 'balance') {
+    fetchBalance().then(() => updateMessageBalanceUI());
+  }
 }
 
 function initNavigation() {
@@ -756,6 +781,9 @@ function openChatUI() {
   const chatName = document.getElementById('chatName');
   if (chatAvatar) chatAvatar.src = currentBot.avatar || '';
   if (chatName) chatName.textContent = currentBot.name || '';
+  updateMessageBalanceUI();
+  applyChatInputLock();
+  if (getMessageBalance() <= 0) openMessagesLimitPopup();
 }
 
 function resumeChatSession(cid) {
@@ -856,7 +884,15 @@ async function fetchAIReply(userText) {
     }),
   });
   const data = await res.json();
-  if (!data || data.error) throw new Error((data && data.message) || 'AI error');
+  if (!data || data.error) {
+    if (data.requireLogin) {
+      throw new Error('requireLogin');
+    }
+    if (data.outOfMessages) {
+      throw new Error('outOfMessages');
+    }
+    throw new Error((data && data.message) || 'AI error');
+  }
   return sanitizeReply(data.reply, currentBot);
 }
 
@@ -907,6 +943,10 @@ async function send() {
     alert('Сначала выбери бота из списка');
     return;
   }
+  if (!canSendMessage()) {
+    openMessagesLimitPopup();
+    return;
+  }
   currentBot = normalizeBot(currentBot);
   if (!chatId) chatId = Date.now();
   registerChatSession(currentBot, chatId);
@@ -914,6 +954,12 @@ async function send() {
   if (!input) return;
   const text = input.value.trim();
   if (!text) return;
+  if (!consumeMessage()) {
+    applyChatInputLock();
+    openMessagesLimitPopup();
+    return;
+  }
+  updateMessageBalanceUI();
   input.value = '';
   sending = true;
   let reply = '';
@@ -925,6 +971,21 @@ async function send() {
   } catch (err) {
     console.error(err);
     hideTyping();
+    if (err.message === 'requireLogin') {
+      alert('Войдите через Google для использования чата');
+      navigateTo('settings');
+      sending = false;
+      return;
+    }
+    if (err.message === 'outOfMessages') {
+      fetchBalance().then(() => {
+        updateMessageBalanceUI();
+        applyChatInputLock();
+        openMessagesLimitPopup();
+      });
+      sending = false;
+      return;
+    }
     reply = generateReply(text, currentBot);
     if (!reply) reply = 'Не удалось получить ответ. Проверь сервер и API ключ.';
   }
@@ -966,6 +1027,137 @@ function loadUserLocal() {
   }
 }
 
+async function fetchBalance() {
+  try {
+    const res = await fetch('/api/balance', { credentials: 'same-origin' });
+    const data = await res.json();
+    serverBalance = data.balance || 0;
+    return serverBalance;
+  } catch (err) {
+    console.error('fetchBalance', err);
+    return 0;
+  }
+}
+
+async function addBalance(amount) {
+  try {
+    const res = await fetch('/api/balance/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ amount }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      serverBalance = data.balance;
+      return serverBalance;
+    }
+    return null;
+  } catch (err) {
+    console.error('addBalance', err);
+    return null;
+  }
+}
+
+function getMessageBalance() {
+  return serverBalance;
+}
+
+function canSendMessage() {
+  return getMessageBalance() > 0;
+}
+
+function consumeMessage() {
+  if (serverBalance <= 0) return false;
+  serverBalance--;
+  return true;
+}
+
+function updateMessageBalanceUI() {
+  const balanceEl = document.getElementById('msgBalance');
+  const chatBalanceEl = document.getElementById('chatMsgBalance');
+  if (balanceEl) balanceEl.textContent = serverBalance;
+  if (chatBalanceEl) chatBalanceEl.textContent = serverBalance;
+}
+
+function applyChatInputLock() {
+  const input = document.getElementById('msgInput');
+  const sendBtn = document.getElementById('btnSend');
+  const locked = !canSendMessage();
+  if (input) {
+    input.disabled = locked;
+    input.placeholder = locked ? 'Сообщения закончились' : 'Напиши что нибудь.....';
+  }
+  if (sendBtn) {
+    sendBtn.disabled = locked;
+    sendBtn.style.opacity = locked ? '0.5' : '1';
+  }
+}
+
+function openMessagesLimitPopup() {
+  if (messagesLimitPopup) {
+    messagesLimitPopup.hidden = false;
+    const choices = document.getElementById('limitPopupChoices');
+    const adSection = document.getElementById('limitPopupAd');
+    if (choices) choices.classList.remove('hidden');
+    if (adSection) adSection.classList.add('hidden');
+  }
+}
+
+function closeMessagesLimitPopup() {
+  if (messagesLimitPopup) messagesLimitPopup.hidden = true;
+}
+
+function goToPurchaseMessages() {
+  closeMessagesLimitPopup();
+  navigateTo('balance');
+}
+
+async function startRewardAd() {
+  if (messagesLimitPopup) {
+    const choices = document.getElementById('limitPopupChoices');
+    const adSection = document.getElementById('limitPopupAd');
+    if (choices) choices.classList.add('hidden');
+    if (adSection) adSection.classList.remove('hidden');
+    
+    // Load ad
+    const adSlot = document.getElementById('rewardAdSlot');
+    if (adSlot && window.adsbygoogle) {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (err) {
+        console.error('Ad load error', err);
+      }
+    }
+    
+    // Start countdown
+    let countdown = AD_VIEW_MIN_MS / 1000;
+    const countdownEl = document.getElementById('adCountdown');
+    if (countdownEl) {
+      countdownEl.textContent = `Осталось: ${countdown} сек`;
+      rewardAdTimer = setInterval(() => {
+        countdown--;
+        if (countdownEl) countdownEl.textContent = `Осталось: ${countdown} сек`;
+        if (countdown <= 0) {
+          clearInterval(rewardAdTimer);
+          rewardAdCompleted = true;
+          if (countdownEl) countdownEl.textContent = 'Реклама просмотрена!';
+          // Grant reward
+          addBalance(AD_REWARD_MESSAGES).then(() => {
+            updateMessageBalanceUI();
+            applyChatInputLock();
+            setTimeout(() => {
+              closeMessagesLimitPopup();
+            }, 1500);
+          });
+        }
+      }, 1000);
+    }
+  }
+}
+
+document.getElementById('messagesLimitClose')?.addEventListener('click', closeMessagesLimitPopup);
+
 function updateAuthUI(user) {
   currentUser = user || null;
 
@@ -1000,6 +1192,13 @@ function updateAuthUI(user) {
       if (sidebarPlaceholder) sidebarPlaceholder.classList.remove('hidden');
     }
     saveUserLocal(user);
+    
+    // Show app shell, hide login screen
+    if (loginScreen) loginScreen.classList.add('hidden');
+    if (appShell) appShell.classList.remove('hidden');
+    
+    // Fetch balance
+    fetchBalance().then(() => updateMessageBalanceUI());
   } else {
     if (guest) guest.classList.remove('hidden');
     if (authUser) authUser.classList.add('hidden');
@@ -1007,6 +1206,10 @@ function updateAuthUI(user) {
     if (sidebarAvatar) sidebarAvatar.classList.add('hidden');
     if (sidebarPlaceholder) sidebarPlaceholder.classList.remove('hidden');
     saveUserLocal(null);
+    
+    // Hide app shell, show login screen
+    if (loginScreen) loginScreen.classList.remove('hidden');
+    if (appShell) appShell.classList.add('hidden');
   }
   updateCreateAccess();
 }
@@ -1078,9 +1281,21 @@ function closeAd() {
 
 function initLiveWallpaper() {
   const toggle = document.getElementById('liveWallpaperToggle');
+  const videoWallpaper = document.getElementById('videoWallpaper');
+  const videoOverlay = document.querySelector('.video-overlay');
   const saved = localStorage.getItem(WALLPAPER_KEY);
   const on = saved !== 'off';
+  
   document.body.classList.toggle('wallpaper-off', !on);
+  
+  if (videoWallpaper) {
+    if (on) {
+      videoWallpaper.play().catch(() => {});
+    } else {
+      videoWallpaper.pause();
+    }
+  }
+  
   if (toggle) {
     toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
     toggle.addEventListener('click', () => {
@@ -1088,6 +1303,14 @@ function initLiveWallpaper() {
       const enabled = !document.body.classList.contains('wallpaper-off');
       localStorage.setItem(WALLPAPER_KEY, enabled ? 'on' : 'off');
       toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      
+      if (videoWallpaper) {
+        if (enabled) {
+          videoWallpaper.play().catch(() => {});
+        } else {
+          videoWallpaper.pause();
+        }
+      }
     });
   }
 }

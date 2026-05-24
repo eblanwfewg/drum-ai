@@ -42,6 +42,7 @@ app.use(
 
 const BOTS_FILE = path.join(__dirname, 'bots.json');
 const CHATS_FILE = path.join(__dirname, 'chats.json');
+const USERS_FILE = path.join(__dirname, 'users.json');
 
 const MEMORY_LIMIT = 30;
 const APP_NAME = process.env.APP_NAME || 'drum.ai';
@@ -280,6 +281,83 @@ app.post('/get-chat', (req, res) => {
     res.json({ history });
 });
 
+// ---------------- USER BALANCE API ----------------
+function getUsers() {
+    return load(USERS_FILE, {});
+}
+
+function saveUsers(users) {
+    save(USERS_FILE, users);
+}
+
+function getUserBalance(email) {
+    if (!email) return 0;
+    const users = getUsers();
+    return users[email]?.balance || 0;
+}
+
+function setUserBalance(email, balance) {
+    if (!email) return;
+    const users = getUsers();
+    if (!users[email]) {
+        users[email] = { balance: 0, createdAt: Date.now() };
+    }
+    users[email].balance = balance;
+    saveUsers(users);
+}
+
+function addUserBalance(email, amount) {
+    if (!email) return;
+    const users = getUsers();
+    if (!users[email]) {
+        users[email] = { balance: 0, createdAt: Date.now() };
+    }
+    users[email].balance = (users[email].balance || 0) + amount;
+    saveUsers(users);
+    return users[email].balance;
+}
+
+app.get('/api/balance', (req, res) => {
+    const sessionUser = req.session && req.session.user;
+    if (!sessionUser || !sessionUser.email) {
+        return res.json({ balance: 0 });
+    }
+    const balance = getUserBalance(sessionUser.email);
+    res.json({ balance });
+});
+
+app.post('/api/balance/add', (req, res) => {
+    const sessionUser = req.session && req.session.user;
+    if (!sessionUser || !sessionUser.email) {
+        return res.json({ success: false, error: 'Not logged in' });
+    }
+    const { amount } = req.body;
+    if (typeof amount !== 'number' || amount <= 0) {
+        return res.json({ success: false, error: 'Invalid amount' });
+    }
+    const newBalance = addUserBalance(sessionUser.email, amount);
+    res.json({ success: true, balance: newBalance });
+});
+
+app.post('/api/balance/consume', (req, res) => {
+    const sessionUser = req.session && req.session.user;
+    if (!sessionUser || !sessionUser.email) {
+        return res.json({ success: false, error: 'Not logged in' });
+    }
+    const { amount = 1 } = req.body;
+    const users = getUsers();
+    if (!users[sessionUser.email]) {
+        return res.json({ success: false, error: 'User not found', balance: 0 });
+    }
+    const currentBalance = users[sessionUser.email].balance || 0;
+    if (currentBalance < amount) {
+        return res.json({ success: false, error: 'Insufficient balance', balance: currentBalance });
+    }
+    users[sessionUser.email].balance = currentBalance - amount;
+    saveUsers(users);
+    res.json({ success: true, balance: users[sessionUser.email].balance });
+});
+
 // ---------------- CHAT (OpenRouter / OpenAI-compatible) ----------------
 app.post('/chat', async (req, res) => {
     try {
@@ -297,6 +375,34 @@ app.post('/chat', async (req, res) => {
                 error: true
             });
         }
+
+        // Check if user is logged in
+        const sessionUser = req.session && req.session.user;
+        if (!sessionUser || !sessionUser.email) {
+            return res.json({
+                reply: 'Войдите через Google для использования чата',
+                error: true,
+                requireLogin: true
+            });
+        }
+
+        // Consume one message
+        const users = getUsers();
+        if (!users[sessionUser.email]) {
+            users[sessionUser.email] = { balance: 100, createdAt: Date.now() };
+            saveUsers(users);
+        }
+        const currentBalance = users[sessionUser.email].balance || 0;
+        if (currentBalance < 1) {
+            return res.json({
+                reply: '',
+                error: true,
+                outOfMessages: true,
+                balance: 0
+            });
+        }
+        users[sessionUser.email].balance = currentBalance - 1;
+        saveUsers(users);
 
         const bots = load(BOTS_FILE, []);
         const chats = load(CHATS_FILE, {});

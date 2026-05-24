@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const session = require('express-session');
+const fs = require('fs');
+const path = require('path');
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -11,6 +13,37 @@ function getGoogleConfig() {
         clientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
         redirectUri: (process.env.GOOGLE_REDIRECT_URI || '').trim()
     };
+}
+
+function getUsers() {
+    const usersFile = path.join(__dirname, 'users.json');
+    try {
+        if (!fs.existsSync(usersFile)) {
+            fs.writeFileSync(usersFile, JSON.stringify({}, null, 2));
+        }
+        return JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+    } catch (err) {
+        console.log('getUsers error:', err.message);
+        return {};
+    }
+}
+
+function saveUsers(users) {
+    const usersFile = path.join(__dirname, 'users.json');
+    try {
+        fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    } catch (err) {
+        console.log('saveUsers error:', err.message);
+    }
+}
+
+function ensureUserBalance(email) {
+    if (!email) return;
+    const users = getUsers();
+    if (!users[email]) {
+        users[email] = { balance: 100, createdAt: Date.now() };
+        saveUsers(users);
+    }
 }
 
 function authConfigured() {
@@ -161,6 +194,8 @@ function setupAuth(app) {
                 name: profile.name || profile.email.split('@')[0],
                 avatar: profile.picture || ''
             };
+
+            ensureUserBalance(profile.email);
 
             req.session.save((err) => {
                 if (err) console.log('session save', err.message);
