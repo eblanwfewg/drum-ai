@@ -158,6 +158,7 @@ function normalizeBot(bot) {
     greeting: bot.greeting || '',
     exampleDialogue: bot.exampleDialogue || '',
     mood: bot.mood || 'neutral',
+    authorId: bot.authorId != null ? String(bot.authorId) : '',
     authorName: bot.authorName || '',
     authorEmail: bot.authorEmail || '',
     authorAvatar: bot.authorAvatar || '',
@@ -167,29 +168,45 @@ function normalizeBot(bot) {
 function getAuthorPayload() {
   if (!currentUser) return {};
   return {
+    authorId: currentUser.id != null ? String(currentUser.id) : '',
     authorName: currentUser.name || '',
     authorEmail: currentUser.email || '',
     authorAvatar: currentUser.avatar || '',
   };
 }
 
-function buildAuthorChipHTML(b) {
+function getAuthorDisplayName(b) {
   const name = (b.authorName || '').trim();
+  if (name) return name;
   const email = (b.authorEmail || '').trim();
-  if (!name && !email) return '';
+  if (email) return email.split('@')[0];
+  const id = (b.authorId || '').trim();
+  if (id) return id;
+  return 'Unknown';
+}
 
-  const display = name || email.split('@')[0] || 'Автор';
-  const avatar = b.authorAvatar || '';
+function buildCreatedByHTML(b) {
+  const display = escapeHtml(getAuthorDisplayName(b));
+  return `<p class="bot-created-by">Created by: ${display}</p>`;
+}
 
-  return `
-    <div class="bot-author" title="${escapeAttr(email || display)}">
-      ${
-        avatar
-          ? `<img class="bot-author-avatar" src="${escapeAttr(avatar)}" alt="">`
-          : '<span class="bot-author-avatar bot-author-placeholder" aria-hidden="true"></span>'
-      }
-      <span class="bot-author-name">${escapeHtml(display)}</span>
-    </div>`;
+function isCurrentUserAdmin() {
+  return !!(currentUser && currentUser.isAdmin);
+}
+
+function canDeleteBot(bot) {
+  if (!bot || !currentUser || !currentUser.email) return false;
+  if (isCurrentUserAdmin()) return true;
+
+  const userEmail = String(currentUser.email).trim().toLowerCase();
+  const authorEmail = String(bot.authorEmail || '').trim().toLowerCase();
+  if (authorEmail && authorEmail === userEmail) return true;
+
+  const userId = currentUser.id != null ? String(currentUser.id) : '';
+  const authorId = bot.authorId != null ? String(bot.authorId) : '';
+  if (authorId && userId && authorId === userId) return true;
+
+  return false;
 }
 
 function mergeBots(serverBots, localBots) {
@@ -349,17 +366,20 @@ function buildBotCardHTML(b) {
   const personality = truncateSnippet(b.personality, 64);
   const scenario = truncateSnippet(b.scenario, 80);
   const genre = escapeHtml(b.genre || 'Другое');
+  const deleteBtn = canDeleteBot(b)
+    ? `<button type="button" class="delete-btn" onclick="event.stopPropagation(); deleteBot(${b.id})" aria-label="Удалить">✕</button>`
+    : '';
 
   return `
     <article class="bot-card" onclick="openChat(${b.id})" style="animation-delay:${Math.random() * 0.15}s">
       <div class="bot-card-media">
         <img src="${escapeAttr(b.avatar)}" alt="${escapeAttr(b.name)}" loading="lazy">
         <div class="bot-card-shade" aria-hidden="true"></div>
-        <button type="button" class="delete-btn" onclick="event.stopPropagation(); deleteBot(${b.id})" aria-label="Удалить">✕</button>
+        ${deleteBtn}
+        ${buildCreatedByHTML(b)}
         <div class="bot-card-overlay">
           <div class="bot-card-meta-row">
             <span class="bot-type-badge">${genre}</span>
-            ${buildAuthorChipHTML(b)}
           </div>
           <h3 class="bot-name">${escapeHtml(b.name)}</h3>
           ${personality ? `<p class="bot-snippet bot-snippet-trait">${escapeHtml(personality)}</p>` : ''}
@@ -709,21 +729,34 @@ async function createBot() {
 }
 
 async function deleteBot(id) {
+  const bot =
+    bots.find((b) => String(b.id) === String(id)) ||
+    loadStorageData().bots.find((b) => String(b.id) === String(id));
+
+  if (!canDeleteBot(bot)) {
+    alert('You do not have permission to delete this bot.');
+    return;
+  }
+
   if (!confirm('Точно удалить этого бота?')) return;
+
   try {
-    await fetch('/delete-bot', {
+    const res = await fetch('/delete-bot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ id }),
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success === false) {
+      alert(data.error || 'You do not have permission to delete this bot.');
+      return;
+    }
     removeBotFromStorage(id);
     await loadBots();
   } catch (err) {
     console.error(err);
-    removeBotFromStorage(id);
-    bots = loadStorageData().bots;
-    refreshBotList();
-    alert('Сервер недоступен — бот удалён локально');
+    alert('Не удалось удалить бота. Проверь подключение к серверу.');
   }
 }
 
@@ -1011,9 +1044,11 @@ function saveUserLocal(user) {
   localStorage.setItem(
     USER_KEY,
     JSON.stringify({
+      id: user.id != null ? String(user.id) : '',
       name: user.name || '',
       email: user.email || '',
       avatar: user.avatar || '',
+      isAdmin: !!user.isAdmin,
     })
   );
 }
@@ -1244,6 +1279,7 @@ function updateAuthUI(user) {
     if (appShell) appShell.classList.add('hidden');
   }
   updateCreateAccess();
+  refreshBotList();
 }
 
 async function fetchAuth() {

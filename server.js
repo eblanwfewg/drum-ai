@@ -26,7 +26,7 @@ function loadEnvFile() {
 
 loadEnvFile();
 
-const { setupAuth } = require('./auth');
+const { setupAuth, isAdminUser } = require('./auth');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -82,10 +82,30 @@ function normalizeBot(bot) {
         greeting: bot.greeting || '',
         exampleDialogue: bot.exampleDialogue || '',
         mood: bot.mood || 'neutral',
+        authorId: bot.authorId != null ? String(bot.authorId) : '',
         authorName: bot.authorName || '',
         authorEmail: bot.authorEmail || '',
         authorAvatar: bot.authorAvatar || ''
     };
+}
+
+function getSessionUser(req) {
+    return req.session && req.session.user ? req.session.user : null;
+}
+
+function canDeleteBot(user, bot) {
+    if (!user || !user.email || !bot) return false;
+    if (isAdminUser(user)) return true;
+
+    const userEmail = String(user.email).trim().toLowerCase();
+    const authorEmail = String(bot.authorEmail || '').trim().toLowerCase();
+    if (authorEmail && authorEmail === userEmail) return true;
+
+    const userId = user.id != null ? String(user.id) : '';
+    const authorId = bot.authorId != null ? String(bot.authorId) : '';
+    if (authorId && userId && authorId === userId) return true;
+
+    return false;
 }
 
 function buildSystemPrompt(bot) {
@@ -245,6 +265,10 @@ app.post('/create-bot', (req, res) => {
         greeting: greeting || '',
         exampleDialogue: exampleDialogue || '',
         mood: mood || 'neutral',
+        authorId:
+            sessionUser.id != null
+                ? String(sessionUser.id)
+                : String(req.body.authorId || ''),
         authorName: sessionUser.name || req.body.authorName || '',
         authorEmail: sessionUser.email || req.body.authorEmail || '',
         authorAvatar: sessionUser.avatar || req.body.authorAvatar || ''
@@ -261,9 +285,29 @@ app.post('/create-bot', (req, res) => {
 
 // ---------------- DELETE BOT ----------------
 app.post('/delete-bot', (req, res) => {
+    const user = getSessionUser(req);
     const { id } = req.body;
+    const deny = () =>
+        res.status(403).json({
+            success: false,
+            error: 'You do not have permission to delete this bot.'
+        });
+
+    if (!user || !user.email) {
+        return deny();
+    }
+
     let bots = load(BOTS_FILE, []);
-    bots = bots.filter((bot) => bot.id != id);
+    const bot = bots.find((b) => String(b.id) === String(id));
+    if (!bot) {
+        return res.json({ success: false, error: 'Bot not found' });
+    }
+
+    if (!canDeleteBot(user, normalizeBot(bot))) {
+        return deny();
+    }
+
+    bots = bots.filter((b) => String(b.id) !== String(id));
     save(BOTS_FILE, bots);
 
     const chats = load(CHATS_FILE, {});

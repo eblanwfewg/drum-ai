@@ -51,6 +51,19 @@ function authConfigured() {
     return !!(clientId && clientSecret);
 }
 
+function getAdminEmails() {
+    const raw = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '';
+    return raw
+        .split(/[,;]/)
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+}
+
+function isAdminUser(user) {
+    if (!user || !user.email) return false;
+    return getAdminEmails().includes(String(user.email).toLowerCase());
+}
+
 function getBaseUrl(req) {
     if (process.env.BASE_URL) {
         return String(process.env.BASE_URL).trim().replace(/\/$/, '');
@@ -209,12 +222,15 @@ function setupAuth(app) {
 
     app.get('/auth/me', (req, res) => {
         if (req.session && req.session.user) {
+            const u = req.session.user;
             return res.json({
                 loggedIn: true,
                 user: {
-                    name: req.session.user.name,
-                    email: req.session.user.email,
-                    avatar: req.session.user.avatar
+                    id: u.id || '',
+                    name: u.name,
+                    email: u.email,
+                    avatar: u.avatar,
+                    isAdmin: isAdminUser(u)
                 }
             });
         }
@@ -237,4 +253,11 @@ function setupAuth(app) {
     });
 }
 
-module.exports = { setupAuth, authConfigured, getGoogleConfig, getRedirectUri };
+module.exports = {
+    setupAuth,
+    authConfigured,
+    getGoogleConfig,
+    getRedirectUri,
+    isAdminUser,
+    getAdminEmails
+};
