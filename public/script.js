@@ -22,6 +22,11 @@ const PURCHASE_BACKUP_KEY = 'drumai_purchase_backup_v1';
 const INITIAL_MESSAGE_BALANCE = 100;
 const AD_REWARD_MESSAGES = 50;
 const AD_VIEW_MIN_MS = 8000;
+const ADSENSE_CLIENT = 'ca-pub-3098007197721707';
+const AD_SLOT_MIN_WIDTH = 300;
+const AD_SLOT_MIN_HEIGHT = 90;
+const AD_LAYOUT_DELAY_MS = 450;
+const AD_SIZE_WAIT_MS = 4000;
 
 let serverBalance = 0;
 
@@ -1131,16 +1136,26 @@ function applyChatInputLock() {
 }
 
 function openMessagesLimitPopup() {
-  if (messagesLimitPopup) {
-    messagesLimitPopup.hidden = false;
-    const choices = document.getElementById('limitPopupChoices');
-    const adSection = document.getElementById('limitPopupAd');
-    if (choices) choices.classList.remove('hidden');
-    if (adSection) adSection.classList.add('hidden');
+  if (!messagesLimitPopup) return;
+  messagesLimitPopup.hidden = false;
+  hideRewardAdSection();
+  if (rewardAdTimer) {
+    clearInterval(rewardAdTimer);
+    rewardAdTimer = null;
   }
+  rewardAdViewing = false;
 }
 
 function closeMessagesLimitPopup() {
+  if (rewardAdTimer) {
+    clearInterval(rewardAdTimer);
+    rewardAdTimer = null;
+  }
+  if (rewardAdViewing && !rewardAdCompleted) {
+    rewardAdViewing = false;
+    rewardAdLoaded = false;
+  }
+  hideRewardAdSection();
   if (messagesLimitPopup) messagesLimitPopup.hidden = true;
 }
 
@@ -1149,77 +1164,173 @@ function goToPurchaseMessages() {
   navigateTo('balance');
 }
 
+function showRewardAdSection() {
+  const choices = document.getElementById('limitPopupChoices');
+  const adSection = document.getElementById('limitPopupAd');
+  if (choices) choices.classList.add('hidden');
+  if (adSection) {
+    adSection.hidden = false;
+    adSection.classList.remove('hidden');
+  }
+  if (messagesLimitPopup) messagesLimitPopup.hidden = false;
+}
+
+function hideRewardAdSection() {
+  const choices = document.getElementById('limitPopupChoices');
+  const adSection = document.getElementById('limitPopupAd');
+  const adSlot = document.getElementById('rewardAdSlot');
+  if (choices) choices.classList.remove('hidden');
+  if (adSection) {
+    adSection.hidden = true;
+    adSection.classList.add('hidden');
+  }
+  if (adSlot) adSlot.innerHTML = '';
+}
+
+function waitForNextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+function waitForAdSlotSize(container, timeoutMs = AD_SIZE_WAIT_MS) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const check = () => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      if (width > 0 && height >= AD_SLOT_MIN_HEIGHT) {
+        resolve(true);
+        return;
+      }
+      if (Date.now() - started >= timeoutMs) {
+        resolve(false);
+        return;
+      }
+      requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  });
+}
+
+function waitForAdsenseReady() {
+  return new Promise((resolve) => {
+    if (window.adsbygoogle) {
+      resolve(true);
+      return;
+    }
+    const onReady = () => resolve(!!window.adsbygoogle);
+    if (document.readyState === 'complete') {
+      setTimeout(onReady, 50);
+      return;
+    }
+    window.addEventListener('load', () => setTimeout(onReady, 50), { once: true });
+  });
+}
+
+function pushAdsenseSlot(insEl) {
+  if (!insEl || insEl.dataset.adInitialized === '1') return false;
+  if (!window.adsbygoogle) return false;
+  try {
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+    insEl.dataset.adInitialized = '1';
+    return true;
+  } catch (err) {
+    console.error('AdSense push error', err);
+    return false;
+  }
+}
+
+async function mountRewardAdSlot() {
+  const adSlot = document.getElementById('rewardAdSlot');
+  if (!adSlot) return false;
+
+  adSlot.innerHTML = '';
+  const ins = document.createElement('ins');
+  ins.className = 'adsbygoogle';
+  ins.style.display = 'block';
+  ins.style.width = '100%';
+  ins.style.minHeight = `${AD_SLOT_MIN_HEIGHT}px`;
+  ins.setAttribute('data-ad-client', ADSENSE_CLIENT);
+  ins.setAttribute('data-ad-format', 'auto');
+  ins.setAttribute('data-full-width-responsive', 'true');
+  adSlot.appendChild(ins);
+
+  await waitForNextFrame();
+  await waitForNextFrame();
+  await new Promise((r) => setTimeout(r, AD_LAYOUT_DELAY_MS));
+
+  const hasSize = await waitForAdSlotSize(adSlot);
+  if (!hasSize) {
+    console.warn('Ad slot has no measurable size yet', adSlot.getBoundingClientRect());
+    return false;
+  }
+
+  await waitForAdsenseReady();
+  return pushAdsenseSlot(ins);
+}
+
+function startRewardAdCountdown() {
+  if (rewardAdTimer) clearInterval(rewardAdTimer);
+
+  let countdown = Math.ceil(AD_VIEW_MIN_MS / 1000);
+  const countdownEl = document.getElementById('adCountdown');
+  if (countdownEl) countdownEl.textContent = `Осталось: ${countdown} сек`;
+
+  rewardAdTimer = setInterval(() => {
+    countdown--;
+    if (countdownEl) {
+      countdownEl.textContent =
+        countdown > 0 ? `Осталось: ${countdown} сек` : 'Реклама просмотрена!';
+    }
+    if (countdown > 0) return;
+
+    clearInterval(rewardAdTimer);
+    rewardAdTimer = null;
+    rewardAdCompleted = true;
+
+    addBalance(AD_REWARD_MESSAGES).then(() => {
+      updateMessageBalanceUI();
+      applyChatInputLock();
+      setTimeout(() => {
+        closeMessagesLimitPopup();
+        rewardAdViewing = false;
+      }, 1500);
+    });
+  }, 1000);
+}
+
+function failRewardAd(message) {
+  const countdownEl = document.getElementById('adCountdown');
+  if (countdownEl) countdownEl.textContent = message || 'Реклама не загрузилась';
+  setTimeout(() => {
+    hideRewardAdSection();
+    rewardAdViewing = false;
+    rewardAdLoaded = false;
+  }, 2000);
+}
+
 async function startRewardAd() {
   if (rewardAdViewing) return;
   rewardAdViewing = true;
   rewardAdCompleted = false;
   rewardAdLoaded = false;
-  
-  if (messagesLimitPopup) {
-    const choices = document.getElementById('limitPopupChoices');
-    const adSection = document.getElementById('limitPopupAd');
-    if (choices) choices.classList.add('hidden');
-    if (adSection) adSection.classList.remove('hidden');
-    
-    // Clear previous ad and create new container
-    const adSlot = document.getElementById('rewardAdSlot');
-    if (adSlot) {
-      adSlot.innerHTML = '';
-      const newAd = document.createElement('ins');
-      newAd.className = 'adsbygoogle';
-      newAd.style.display = 'block';
-      newAd.setAttribute('data-ad-client', 'ca-pub-3098007197721707');
-      newAd.setAttribute('data-ad-format', 'auto');
-      newAd.setAttribute('data-full-width-responsive', 'true');
-      adSlot.appendChild(newAd);
-      
-      // Load ad
-      if (window.adsbygoogle) {
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-          rewardAdLoaded = true;
-        } catch (err) {
-          console.error('Ad load error', err);
-          rewardAdLoaded = false;
-        }
-      }
-    }
-    
-    // Start countdown only if ad loaded
-    if (rewardAdLoaded) {
-      let countdown = AD_VIEW_MIN_MS / 1000;
-      const countdownEl = document.getElementById('adCountdown');
-      if (countdownEl) {
-        countdownEl.textContent = `Осталось: ${countdown} сек`;
-        rewardAdTimer = setInterval(() => {
-          countdown--;
-          if (countdownEl) countdownEl.textContent = `Осталось: ${countdown} сек`;
-          if (countdown <= 0) {
-            clearInterval(rewardAdTimer);
-            rewardAdCompleted = true;
-            if (countdownEl) countdownEl.textContent = 'Реклама просмотрена!';
-            // Grant reward
-            addBalance(AD_REWARD_MESSAGES).then(() => {
-              updateMessageBalanceUI();
-              applyChatInputLock();
-              setTimeout(() => {
-                closeMessagesLimitPopup();
-                rewardAdViewing = false;
-              }, 1500);
-            });
-          }
-        }, 1000);
-      }
-    } else {
-      // Ad failed to load, show error and go back
-      const countdownEl = document.getElementById('adCountdown');
-      if (countdownEl) countdownEl.textContent = 'Реклама не загрузилась';
-      setTimeout(() => {
-        if (choices) choices.classList.remove('hidden');
-        if (adSection) adSection.classList.add('hidden');
-        rewardAdViewing = false;
-      }, 2000);
-    }
+
+  if (!messagesLimitPopup) {
+    rewardAdViewing = false;
+    return;
+  }
+
+  messagesLimitPopup.hidden = false;
+  showRewardAdSection();
+
+  const countdownEl = document.getElementById('adCountdown');
+  if (countdownEl) countdownEl.textContent = 'Загрузка рекламы…';
+
+  rewardAdLoaded = await mountRewardAdSlot();
+
+  if (rewardAdLoaded) {
+    startRewardAdCountdown();
+  } else {
+    failRewardAd('Реклама не загрузилась');
   }
 }
 
