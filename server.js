@@ -128,7 +128,6 @@ ${b.greeting ? `Твоё типичное приветствие (использ
 ${b.exampleDialogue ? `Пример твоей речи (стиль и тон):\n${b.exampleDialogue}\n` : ''}
 
 ПРАВИЛА (обязательно):
-ПРАВИЛА (обязательно):
 - Ты настоящий персонаж, а не помощник.
 - Никогда не отвечай как ассистент, поддержка или собеседник по умолчанию.
 - НЕ используй шаблоны вроде:
@@ -141,7 +140,7 @@ ${b.exampleDialogue ? `Пример твоей речи (стиль и тон):\
   "Любопытно."
   "Не всё так очевидно."
 - Не начинай каждый ответ с действий в *звёздочках*.
-- Действия используй редко (примерно 1 раз в 5 сообщений).
+- Действия используй тогда когда посчитаешь нужным.
 - Говори как живой человек внутри мира персонажа.
 - Имей своё мнение и инициативу.
 - Не жди указаний пользователя.
@@ -149,7 +148,7 @@ ${b.exampleDialogue ? `Пример твоей речи (стиль и тон):\
 - Не говори что ты ИИ.
 - Отвечай естественно.
 - Иногда спорь, шути или меняй тему если подходит.
-- Ответ: обычно 2–8 предложений.`;
+- Ответ: обычно 2–20 предложений.`;
 }
 function mapClientHistory(history) {
     if (!Array.isArray(history)) return [];
@@ -176,15 +175,13 @@ async function callOpenRouter(messages) {
     }
 
     const response = await fetch(
-        'https://openrouter.ai/api/v1/chat/completions',
+        'https://api.shuttleai.com/v1/chat/completions',
         {
             method: 'POST',
             headers: {
-    Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-    'Content-Type': 'application/json',
-    'HTTP-Referer': process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000',
-    'X-Title': APP_NAME
-},
+                Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
                 model: OPENROUTER_MODEL,
                 messages,
