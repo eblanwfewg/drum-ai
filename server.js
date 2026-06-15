@@ -46,14 +46,11 @@ const USERS_FILE = path.join(__dirname, 'users.json');
 
 const MEMORY_LIMIT = 30;
 const APP_NAME = process.env.APP_NAME || 'drum.ai';
-const VENICE_API_KEY =
-    process.env.VENICE_API_KEY ||
-    process.env.OPENROUTER_API_KEY ||
-    '';
-const VENICE_MODEL =
-    process.env.VENICE_MODEL ||
-    process.env.OPENROUTER_MODEL ||
-    'llama-3-70b-instruct';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const OPENROUTER_MODEL =
+    process.env.OPENROUTER_MODEL || 'llama-3-70b-instruct';
+const OPENROUTER_BASE_URL =
+    process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
 
 // ---------------- HELPERS ----------------
 function load(file, def) {
@@ -172,27 +169,27 @@ function syncServerHistory(chats, botId, chatId, memory) {
     }));
 }
 
-async function callVenice(messages) {
-    if (!VENICE_API_KEY) {
+async function callOpenRouter(messages) {
+    if (!OPENROUTER_API_KEY) {
         throw new Error('API key not configured');
     }
 
-    const response = await fetch(
-        'https://api.venice.ai/api/v1/chat/completions',
-        {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${VENICE_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: VENICE_MODEL,
-                messages,
-                temperature: 0.7,
-                max_tokens: 500
-            })
-        }
-    );
+    const baseUrl = OPENROUTER_BASE_URL.replace(/\/$/, '');
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
+            'X-Title': process.env.APP_NAME || 'drum.ai'
+        },
+        body: JSON.stringify({
+            model: OPENROUTER_MODEL,
+            messages,
+            temperature: 0.7,
+            max_tokens: 500
+        })
+    });
 
     const data = await response.json();
 
@@ -200,7 +197,7 @@ async function callVenice(messages) {
         const errMsg =
             data?.error?.message ||
             data?.error ||
-            `Venice API HTTP ${response.status}`;
+            `OpenRouter API HTTP ${response.status}`;
         throw new Error(errMsg);
     }
 
@@ -493,7 +490,7 @@ app.post('/chat', async (req, res) => {
             ...memory
         ];
 
-        const reply = await callVenice(apiMessages);
+        const reply = await callOpenRouter(apiMessages);
 
         memory.push({ role: 'assistant', content: reply });
         memory = memory.slice(-MEMORY_LIMIT);
@@ -515,8 +512,8 @@ app.post('/chat', async (req, res) => {
 // ---------------- START ----------------
 app.listen(PORT, () => {
     console.log(`${APP_NAME} — http://localhost:${PORT}`);
-    if (!VENICE_API_KEY) {
-        console.log('WARNING: set VENICE_API_KEY (or OPENROUTER_API_KEY) in .env');
+    if (!OPENROUTER_API_KEY) {
+        console.log('WARNING: set OPENROUTER_API_KEY in .env');
     }
     const gid = (process.env.GOOGLE_CLIENT_ID || '').trim();
     if (!gid || !process.env.GOOGLE_CLIENT_SECRET) {
